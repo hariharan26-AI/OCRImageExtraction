@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Review Extracted Data</title>
+<style>
+  :root {
+    --ink: #1c1f26;
+    --paper: #f6f5f1;
+    --line: #d8d5cc;
+    --accent: #2f5d50;
+    --accent-dark: #234a3f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", Arial, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    margin: 0;
+    padding: 24px;
+  }
+  h1 {
+    font-size: 20px;
+    margin: 0 0 18px;
+  }
+  .layout {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+  }
+
+  /* ---------- Image panel (left, big, zoomable) ---------- */
+  .image-panel {
+    flex: 1.3;
+    position: sticky;
+    top: 24px;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px;
+  }
+  .image-toolbar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+    align-items: center;
+  }
+  .image-toolbar button {
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    background: #fafaf8;
+    font-size: 18px;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .image-toolbar button:hover { background: #eee; }
+  .zoom-level {
+    font-size: 13px;
+    color: #666;
+    margin-left: 4px;
+    min-width: 48px;
+  }
+  .image-viewport {
+    width: 100%;
+    height: 78vh;
+    overflow: hidden;
+    position: relative;
+    background: #111;
+    border-radius: 8px;
+    cursor: grab;
+  }
+  .image-viewport.dragging { cursor: grabbing; }
+  .image-viewport img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: 0 0;
+    user-select: none;
+    -webkit-user-drag: none;
+    max-width: none;
+    width: 100%;
+    display: block;
+  }
+  .image-hint {
+    font-size: 12px;
+    color: #888;
+    margin-top: 8px;
+  }
+
+  /* ---------- Form panel (right) ---------- */
+  .form-panel {
+    flex: 1;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .field-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    max-height: 78vh;
+    overflow-y: auto;
+    padding-right: 6px;
+  }
+  label {
+    display: block;
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 4px;
+  }
+  input[type="text"] {
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    font-size: 14px;
+  }
+  input[type="text"]:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .submit-row {
+    margin-top: 18px;
+    display: flex;
+    justify-content: flex-end;
+  }
+  .submit-row button {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 15px;
+    cursor: pointer;
+  }
+  .submit-row button:hover { background: var(--accent-dark); }
+
+  @media (max-width: 900px) {
+    .layout { flex-direction: column; }
+    .image-panel { position: static; width: 100%; }
+  }
+</style>
+</head>
+<body>
+  <h1>Review Extracted Data</h1>
+
+  <div class="layout">
+    <!-- LEFT: zoomable/pannable image reference -->
+    <div class="image-panel">
+      {% if image_url %}
+        <div class="image-toolbar">
+          <button type="button" id="zoomOut" title="Zoom out">−</button>
+          <span class="zoom-level" id="zoomLevel">100%</span>
+          <button type="button" id="zoomIn" title="Zoom in">+</button>
+          <button type="button" id="zoomReset" title="Reset zoom">⤾</button>
+        </div>
+        <div class="image-viewport" id="viewport">
+          <img id="scanImage" src="{{ image_url }}" alt="Uploaded scanned form">
+        </div>
+        <p class="image-hint">Scroll to zoom, click and drag to pan. Use this to double-check characters the OCR might have misread.</p>
+      {% else %}
+        <p>No image available.</p>
+      {% endif %}
+    </div>
+
+    <!-- RIGHT: editable extracted fields -->
+    <div class="form-panel">
+      <form method="POST">
+        <div class="field-grid">
+          {% for field in fields %}
+          <div>
+            <label for="{{ field }}">{{ field }}</label>
+            <input type="text" id="{{ field }}" name="{{ field }}" value="{{ data.get(field, '') }}">
+          </div>
+          {% endfor %}
+        </div>
+        <div class="submit-row">
+          <button type="submit">Confirm &amp; Fill Form</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+<script>
+(function () {
+  const viewport = document.getElementById('viewport');
+  const img = document.getElementById('scanImage');
+  const zoomLevelLabel = document.getElementById('zoomLevel');
+  if (!viewport || !img) return;
+
+  let scale = 1;
+  let originX = 0;
+  let originY = 0;
+  const MIN_SCALE = 0.5;
+  const MAX_SCALE = 6;
+
+  function applyTransform() {
+    img.style.transform = `translate(${originX}px, ${originY}px) scale(${scale})`;
+    zoomLevelLabel.textContent = Math.round(scale * 100) + '%';
+  }
+
+  function setScale(newScale, pivotX, pivotY) {
+    newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, newScale));
+    // Keep the point under the cursor/pivot stable while zooming.
+    const rect = viewport.getBoundingClientRect();
+    const px = pivotX - rect.left;
+    const py = pivotY - rect.top;
+    const factor = newScale / scale;
+    originX = px - (px - originX) * factor;
+    originY = py - (py - originY) * factor;
+    scale = newScale;
+    applyTransform();
+  }
+
+  document.getElementById('zoomIn').addEventListener('click', () => {
+    const rect = viewport.getBoundingClientRect();
+    setScale(scale * 1.25, rect.left + rect.width / 2, rect.top + rect.height / 2);
+  });
+  document.getElementById('zoomOut').addEventListener('click', () => {
+    const rect = viewport.getBoundingClientRect();
+    setScale(scale / 1.25, rect.left + rect.width / 2, rect.top + rect.height / 2);
+  });
+  document.getElementById('zoomReset').addEventListener('click', () => {
+    scale = 1;
+    originX = 0;
+    originY = 0;
+    applyTransform();
+  });
+
+  viewport.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const delta = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+    setScale(scale * delta, e.clientX, e.clientY);
+  }, { passive: false });
+
+  // Drag to pan
+  let dragging = false;
+  let lastX = 0;
+  let lastY = 0;
+
+  viewport.addEventListener('mousedown', (e) => {
+    dragging = true;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    viewport.classList.add('dragging');
+  });
+  window.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    originX += e.clientX - lastX;
+    originY += e.clientY - lastY;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    applyTransform();
+  });
+  window.addEventListener('mouseup', () => {
+    dragging = false;
+    viewport.classList.remove('dragging');
+  });
+
+  applyTransform();
+})();
+</script>
+</body>
+</html>

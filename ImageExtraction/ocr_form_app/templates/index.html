@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Upload Scanned Form</title>
+<style>
+  :root {
+    --ink: #1c1f26;
+    --paper: #f6f5f1;
+    --line: #d8d5cc;
+    --accent: #2f5d50;
+    --error: #b3432b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", Arial, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    margin: 0;
+    padding: 40px 20px;
+  }
+  .card {
+    max-width: 560px;
+    margin: 0 auto;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 32px;
+  }
+  h1 {
+    font-size: 22px;
+    margin: 0 0 6px;
+  }
+  p.sub {
+    color: #6b6b6b;
+    margin: 0 0 24px;
+    font-size: 14px;
+  }
+  input[type="file"] {
+    width: 100%;
+    padding: 10px;
+    border: 1px dashed var(--line);
+    border-radius: 8px;
+    background: #fafaf8;
+  }
+  .browse-btn {
+    width: 100%;
+    padding: 12px;
+    border: 1px dashed var(--accent);
+    border-radius: 8px;
+    background: #fafaf8;
+    color: var(--accent);
+    font-size: 15px;
+    cursor: pointer;
+  }
+  .browse-btn:hover { background: #f0f4f2; }
+  .browse-btn:disabled { opacity: 0.6; cursor: default; }
+  .chosen-path {
+    margin-top: 10px;
+    font-size: 13px;
+    color: #555;
+    word-break: break-all;
+    background: #fafaf8;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 8px 10px;
+  }
+  button {
+    margin-top: 18px;
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 15px;
+    cursor: pointer;
+  }
+  button:hover { opacity: 0.92; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .error-box {
+    margin-top: 24px;
+    border: 1px solid var(--error);
+    background: #fdf1ee;
+    color: var(--error);
+    padding: 14px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+  }
+  .error-box img {
+    display: block;
+    max-width: 100%;
+    margin-top: 12px;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+  }
+  .success-box {
+    margin-top: 24px;
+    border: 1px solid var(--accent);
+    background: #eef5f1;
+    color: var(--accent);
+    padding: 14px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Upload Scanned Form</h1>
+    <p class="sub">Select a scanned image of the form to extract its fields.</p>
+    <form method="POST">
+      <button type="submit">
+        Extract Next Image
+      </button>
+    </form>
+
+    {% if filled %}
+    <div class="success-box">
+      Previous record was filled and sent successfully.
+    </div>
+    {% endif %}
+
+    {% if error %}
+    <div class="error-box">
+      <strong>Extraction failed:</strong> {{ error }}
+      {% if image_url %}
+        <img src="{{ image_url }}" alt="Uploaded form">
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</body>
+</html>
